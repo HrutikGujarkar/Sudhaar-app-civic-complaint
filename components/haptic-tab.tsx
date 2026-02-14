@@ -13,6 +13,9 @@ export function HapticTab(props: BottomTabBarButtonProps) {
         }
         props.onPressIn?.(ev);
       }}
+      onPress={(ev) => {
+        props.onPress?.(ev);
+      }}
     />
   );
 }

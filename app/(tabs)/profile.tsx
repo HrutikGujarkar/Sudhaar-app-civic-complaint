@@ -1,15 +1,19 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { signOutUser } from '@/services/auth.service';
 import { getUserReports, Report } from '@/services/firestore.service';
+import { getAddressFromGeoPoint } from '@/services/location.service';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    Image,
+    RefreshControl,
     ScrollView,
     StyleSheet,
     Text,
@@ -17,15 +21,16 @@ import {
     View,
 } from 'react-native';
 
-const STATUS_LABELS = ['Reported', 'Validated', 'Working', 'Completed'];
-
 export default function ProfileScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const { user, setSkipAuth } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
   const [myReports, setMyReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [locationAddresses, setLocationAddresses] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (user) {
@@ -39,18 +44,45 @@ export default function ProfileScreen() {
     if (!user) return;
     
     try {
+      console.log('Fetching reports for user:', user.uid);
       const reports = await getUserReports(user.uid);
+      console.log('Reports fetched successfully:', reports.length);
       setMyReports(reports);
-    } catch (error) {
+      
+      // Fetch addresses for all reports
+      const addresses: Record<string, string> = {};
+      for (const report of reports) {
+        if (report.id && report.location) {
+          try {
+            const address = await getAddressFromGeoPoint(report.location);
+            addresses[report.id] = address;
+          } catch (error) {
+            console.error('Error fetching address for report:', report.id);
+            addresses[report.id] = t('loadingLocation');
+          }
+        }
+      }
+      setLocationAddresses(addresses);
+    } catch (error: any) {
       console.error('Error fetching user reports:', error);
+      Alert.alert(
+        t('error'),
+        `Failed to load your reports. ${error.message || 'Please try again.'}`
+      );
     } finally {
       setLoading(false);
     }
   };
+  
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchMyReports();
+    setRefreshing(false);
+  };
 
   const handleSignOut = async () => {
     Alert.alert(
-      user ? 'Sign Out' : 'Exit Guest Mode',
+      user ? t('signOut') || 'Sign Out' : 'Exit Guest Mode',
       user ? 'Are you sure you want to sign out?' : 'Return to login screen?',
       [
         { text: 'Cancel', style: 'cancel' },
@@ -103,32 +135,37 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      <ScrollView style={styles.scrollView}>
+      <ScrollView 
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         {/* Stats */}
         <View style={styles.statsContainer}>
           <View style={[styles.statCard, { backgroundColor: colors.cardBackground }]}>
             <Text style={[styles.statNumber, { color: colors.primary }]}>
               {myReports.length}
             </Text>
-            <Text style={[styles.statLabel, { color: colors.text }]}>Total Reports</Text>
+            <Text style={[styles.statLabel, { color: colors.text }]}>{t('totalReports') || 'Total Reports'}</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: colors.cardBackground }]}>
             <Text style={[styles.statNumber, { color: colors.success }]}>
               {myReports.filter(r => r.status === 3).length}
             </Text>
-            <Text style={[styles.statLabel, { color: colors.text }]}>Resolved</Text>
+            <Text style={[styles.statLabel, { color: colors.text }]}>{t('resolved') || 'Resolved'}</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: colors.cardBackground }]}>
             <Text style={[styles.statNumber, { color: colors.warning }]}>
               {myReports.filter(r => r.status < 3).length}
             </Text>
-            <Text style={[styles.statLabel, { color: colors.text }]}>Pending</Text>
+            <Text style={[styles.statLabel, { color: colors.text }]}>{t('pending') || 'Pending'}</Text>
           </View>
         </View>
 
         {/* My Complaints Section */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>My Complaints</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('myComplaints')}</Text>
 
           {loading ? (
             <View style={styles.loadingContainer}>
@@ -138,13 +175,13 @@ export default function ProfileScreen() {
             <View style={[styles.emptyCard, { backgroundColor: colors.cardBackground }]}>
               <IconSymbol name="doc.text" size={48} color={colors.icon} />
               <Text style={[styles.emptyText, { color: colors.icon }]}>
-                No complaints yet
+                {t('noComplaintsYet') || 'No complaints yet'}
               </Text>
               <TouchableOpacity
                 style={[styles.reportButton, { backgroundColor: colors.primary }]}
                 onPress={() => router.push('/(tabs)/report')}
               >
-                <Text style={styles.reportButtonText}>Report an Issue</Text>
+                <Text style={styles.reportButtonText}>{t('reportIssue')}</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -169,7 +206,7 @@ export default function ProfileScreen() {
                         { color: getStatusColor(report.status) },
                       ]}
                     >
-                      {STATUS_LABELS[report.status]}
+                      {[t('reported'), t('validated'), t('working'), t('completed')][report.status]}
                     </Text>
                   </View>
                 </View>
@@ -181,11 +218,23 @@ export default function ProfileScreen() {
                   {report.description}
                 </Text>
 
+                {report.imageURL && (
+                  <View style={styles.reportImageContainer}>
+                    <Image
+                      source={{ uri: report.imageURL }}
+                      style={styles.reportImage}
+                      resizeMode="cover"
+                    />
+                  </View>
+                )}
+
                 <View style={styles.reportFooter}>
                   <View style={styles.reportMeta}>
                     <IconSymbol name="mappin" size={14} color={colors.icon} />
-                    <Text style={[styles.reportMetaText, { color: colors.icon }]}>
-                      {report.type}
+                    <Text style={[styles.reportMetaText, { color: colors.icon }]} numberOfLines={1}>
+                      {report.id && locationAddresses[report.id] 
+                        ? locationAddresses[report.id] 
+                        : report.type}
                     </Text>
                   </View>
                   <Text style={[styles.reportDate, { color: colors.icon }]}>
@@ -210,20 +259,20 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: colors.cardBackground }]}
-            onPress={() => Alert.alert('Coming Soon', 'Settings coming soon!')}
+            onPress={() => Alert.alert(t('comingSoon'), t('settingsComingSoon') || 'Settings coming soon!')}
           >
             <IconSymbol name="gearshape.fill" size={24} color={colors.icon} />
-            <Text style={[styles.actionButtonText, { color: colors.text }]}>Settings</Text>
+            <Text style={[styles.actionButtonText, { color: colors.text }]}>{t('settings') || 'Settings'}</Text>
             <IconSymbol name="chevron.right" size={20} color={colors.icon} />
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: colors.cardBackground }]}
-            onPress={() => Alert.alert('Coming Soon', 'Help & Support coming soon!')}
+            onPress={() => Alert.alert(t('comingSoon'), t('helpSupportComingSoon') || 'Help & Support coming soon!')}
           >
             <IconSymbol name="questionmark.circle.fill" size={24} color={colors.icon} />
             <Text style={[styles.actionButtonText, { color: colors.text }]}>
-              Help & Support
+              {t('helpSupport') || 'Help & Support'}
             </Text>
             <IconSymbol name="chevron.right" size={20} color={colors.icon} />
           </TouchableOpacity>
@@ -234,7 +283,7 @@ export default function ProfileScreen() {
           >
             <IconSymbol name="rectangle.portrait.and.arrow.right" size={24} color={colors.danger} />
             <Text style={[styles.actionButtonText, { color: colors.danger }]}>
-              Sign Out
+              {t('signOut') || 'Sign Out'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -383,9 +432,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    flex: 1,
+    marginRight: 8,
   },
   reportMetaText: {
     fontSize: 12,
+    flex: 1,
+  },
+  reportImageContainer: {
+    width: '100%',
+    height: 150,
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginBottom: 12,
+    backgroundColor: '#f5f5f5',
+  },
+  reportImage: {
+    width: '100%',
+    height: '100%',
   },
   reportDate: {
     fontSize: 11,

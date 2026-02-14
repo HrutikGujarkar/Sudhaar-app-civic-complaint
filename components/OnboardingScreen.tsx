@@ -2,13 +2,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useRef, useState } from 'react';
 import {
-    Dimensions,
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-    ViewToken
+  Dimensions,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  ViewToken
 } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
@@ -196,19 +196,6 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
             <Text style={styles.startButtonText}>Get Started</Text>
           </TouchableOpacity>
         )}
-
-        {!isFirstScreen && !isLastScreen && (
-          <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
-            <Text style={styles.nextButtonText}>Next</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Skip Button */}
-        {!isFirstScreen && !isLastScreen && (
-          <TouchableOpacity style={styles.skipButton} onPress={handleStart}>
-            <Text style={styles.skipButtonText}>Skip</Text>
-          </TouchableOpacity>
-        )}
       </View>
     );
   };
@@ -350,26 +337,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
-  nextButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 50,
-    paddingVertical: 14,
-    borderRadius: 25,
-    marginBottom: 40,
-  },
-  nextButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  skipButton: {
-    marginBottom: 40,
-    paddingVertical: 10,
-  },
-  skipButtonText: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 16,
-  },
+
   welcomeTitle: {
     fontSize: 48,
     fontWeight: 'bold',

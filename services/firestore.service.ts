@@ -6,7 +6,6 @@ import {
     doc,
     GeoPoint,
     getDocs,
-    orderBy,
     query,
     Timestamp,
     updateDoc,
@@ -25,34 +24,43 @@ export interface Report {
   status: number; // 0: Reported, 1: Validated, 2: Working, 3: Completed
   timestamp: Timestamp;
   uid: string;
+  userName: string;
   votedBy: string[];
 }
 
 // Create a new report
 export const createReport = async (reportData: Omit<Report, 'id' | 'timestamp' | 'votedBy' | 'status'>) => {
   try {
+    console.log('Creating report with data:', reportData);
     const docRef = await addDoc(collection(db, 'reports'), {
       ...reportData,
       timestamp: Timestamp.now(),
       status: 0,
       votedBy: [],
     });
+    console.log('Report created with ID:', docRef.id);
     return docRef.id;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating report:', error);
-    throw error;
+    throw new Error(`Failed to create report: ${error.message || error}`);
   }
 };
 
 // Get all reports
 export const getAllReports = async (): Promise<Report[]> => {
   try {
-    const q = query(collection(db, 'reports'), orderBy('timestamp', 'desc'));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
+    const querySnapshot = await getDocs(collection(db, 'reports'));
+    const reports = querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
     } as Report));
+    
+    // Sort by timestamp on client side
+    return reports.sort((a, b) => {
+      const timeA = a.timestamp?.toMillis?.() || 0;
+      const timeB = b.timestamp?.toMillis?.() || 0;
+      return timeB - timeA; // Descending order (newest first)
+    });
   } catch (error) {
     console.error('Error getting reports:', error);
     throw error;
@@ -64,14 +72,20 @@ export const getUserReports = async (uid: string): Promise<Report[]> => {
   try {
     const q = query(
       collection(db, 'reports'),
-      where('uid', '==', uid),
-      orderBy('timestamp', 'desc')
+      where('uid', '==', uid)
     );
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
+    const reports = querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
     } as Report));
+    
+    // Sort by timestamp on client side to avoid composite index requirement
+    return reports.sort((a, b) => {
+      const timeA = a.timestamp?.toMillis?.() || 0;
+      const timeB = b.timestamp?.toMillis?.() || 0;
+      return timeB - timeA; // Descending order (newest first)
+    });
   } catch (error) {
     console.error('Error getting user reports:', error);
     throw error;

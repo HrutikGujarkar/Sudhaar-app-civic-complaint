@@ -1,0 +1,32 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow read/write access to reports collection
+    match /reports/{reportId} {
+      // Allow anyone to read reports
+      allow read: if true;
+      
+      // Allow authenticated users and guests to create reports
+      allow create: if true;
+      
+      // Allow users to update their own reports (full update)
+      allow update: if request.auth != null && 
+                      request.auth.uid == resource.data.uid;
+      
+      // Allow authenticated users to vote on any report (only votedBy field)
+      allow update: if request.auth != null &&
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votedBy']);
+      
+      // Allow users to delete their own reports
+      allow delete: if request.auth != null && 
+                      request.auth.uid == resource.data.uid;
+    }
+    
+    // Allow read/write access to users collection
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

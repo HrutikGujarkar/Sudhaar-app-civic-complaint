@@ -1,8 +1,10 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getAllReports, Report, voteReport } from '@/services/firestore.service';
+import { getAddressFromGeoPoint } from '@/services/location.service';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import {
@@ -15,17 +17,16 @@ import {
     View,
 } from 'react-native';
 
-const STATUS_LABELS = ['Reported', 'Validated', 'Working', 'Completed'];
-const FILTER_OPTIONS = ['Reported', 'Validated', 'Working', 'Completed'];
-
 export default function CommunityScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<number | null>(null);
+  const [locationAddresses, setLocationAddresses] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchReports();
@@ -35,6 +36,21 @@ export default function CommunityScreen() {
     try {
       const allReports = await getAllReports();
       setReports(allReports);
+      
+      // Fetch addresses for all reports
+      const addresses: Record<string, string> = {};
+      for (const report of allReports) {
+        if (report.id && report.location) {
+          try {
+            const address = await getAddressFromGeoPoint(report.location);
+            addresses[report.id] = address;
+          } catch (error) {
+            console.error('Error fetching address for report:', report.id);
+            addresses[report.id] = t('loadingLocation');
+          }
+        }
+      }
+      setLocationAddresses(addresses);
     } catch (error) {
       console.error('Error fetching reports:', error);
     } finally {
@@ -103,7 +119,7 @@ export default function CommunityScreen() {
 
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.background }]}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Community Feed</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('communityFeed')}</Text>
       </View>
 
       {/* Filter Chips */}
@@ -125,12 +141,12 @@ export default function CommunityScreen() {
                 { color: selectedFilter === null ? '#fff' : colors.text },
               ]}
             >
-              All
+              {t('all')}
             </Text>
           </TouchableOpacity>
-          {FILTER_OPTIONS.map((option, index) => (
+          {[t('reported'), t('validated'), t('working'), t('completed')].map((option, index) => (
             <TouchableOpacity
-              key={option}
+              key={index}
               style={[
                 styles.filterChip,
                 {
@@ -162,7 +178,7 @@ export default function CommunityScreen() {
         {filteredReports.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={[styles.emptyText, { color: colors.icon }]}>
-              No reports found
+              {t('noReportsFound')}
             </Text>
           </View>
         ) : (
@@ -176,12 +192,14 @@ export default function CommunityScreen() {
                 {/* User Info */}
                 <View style={styles.reportHeader}>
                   <View style={styles.userInfo}>
-                    <View style={[styles.avatar, { backgroundColor: colors.icon }]}>
-                      <Text style={styles.avatarText}>A</Text>
+                    <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+                      <Text style={styles.avatarText}>
+                        {report.userName ? report.userName.charAt(0).toUpperCase() : 'A'}
+                      </Text>
                     </View>
                     <View>
                       <Text style={[styles.userName, { color: colors.text }]}>
-                        Anonymous
+                        {report.userName || t('anonymous')}
                       </Text>
                       <Text style={[styles.reportDate, { color: colors.icon }]}>
                         {formatDate(report.timestamp)}
@@ -200,8 +218,8 @@ export default function CommunityScreen() {
 
                 {/* Status Progress */}
                 <View style={styles.statusContainer}>
-                  {STATUS_LABELS.map((label, index) => (
-                    <View key={label} style={styles.statusItem}>
+                  {[t('reported'), t('validated'), t('working'), t('completed')].map((label, index) => (
+                    <View key={index} style={styles.statusItem}>
                       <View
                         style={[
                           styles.statusIcon,
@@ -235,7 +253,9 @@ export default function CommunityScreen() {
                   <View style={styles.locationInfo}>
                     <IconSymbol name="mappin" size={14} color={colors.icon} />
                     <Text style={[styles.locationText, { color: colors.icon }]}>
-                      {report.location ? 'Nearby location' : 'Location unavailable'}
+                      {report.id && locationAddresses[report.id] 
+                        ? locationAddresses[report.id] 
+                        : t('loadingLocation')}
                     </Text>
                   </View>
                   <TouchableOpacity
@@ -392,9 +412,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    flex: 1,
+    marginRight: 12,
   },
   locationText: {
     fontSize: 12,
+    flex: 1,
+    flexWrap: 'wrap',
+    lineHeight: 16,
   },
   voteButton: {
     flexDirection: 'row',

@@ -1,9 +1,11 @@
+import LanguageSelector from '@/components/LanguageSelector';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getNearbyReports, Report } from '@/services/firestore.service';
-import * as Location from 'expo-location';
+import { calculateDistance, formatDistance, getCurrentLocation } from '@/services/location.service';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
@@ -21,9 +23,12 @@ export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const { user } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
   const [location, setLocation] = useState<string>('Fetching location...');
+  const [userCoordinates, setUserCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [nearbyReports, setNearbyReports] = useState<Report[]>([]);
+  const [reportDistances, setReportDistances] = useState<Record<string, string>>({});
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -33,22 +38,15 @@ export default function HomeScreen() {
 
   const fetchLocation = async () => {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
+      const locationData = await getCurrentLocation(true); // High accuracy
+      
+      if (!locationData) {
         setLocation('Location permission denied');
         return;
       }
 
-      const currentLocation = await Location.getCurrentPositionAsync({});
-      const address = await Location.reverseGeocodeAsync({
-        latitude: currentLocation.coords.latitude,
-        longitude: currentLocation.coords.longitude,
-      });
-
-      if (address[0]) {
-        const { city, subregion } = address[0];
-        setLocation(`${subregion || city || 'Unknown'}, ${city || 'Unknown'}`);
-      }
+      setUserCoordinates(locationData.coordinates);
+      setLocation(locationData.address);
     } catch (error) {
       console.error('Error fetching location:', error);
       setLocation('Unable to fetch location');
@@ -57,15 +55,33 @@ export default function HomeScreen() {
 
   const fetchNearbyReports = async () => {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        const currentLocation = await Location.getCurrentPositionAsync({});
-        const reports = await getNearbyReports(
-          currentLocation.coords.latitude,
-          currentLocation.coords.longitude
-        );
-        setNearbyReports(reports.slice(0, 3)); // Show only top 3
+      const locationData = await getCurrentLocation(true); // High accuracy
+      
+      if (!locationData) {
+        console.log('Location permission not granted for nearby reports');
+        return;
       }
+
+      const reports = await getNearbyReports(
+        locationData.coordinates.lat,
+        locationData.coordinates.lng
+      );
+      setNearbyReports(reports.slice(0, 3)); // Show only top 3
+      
+      // Calculate distances
+      const distances: Record<string, string> = {};
+      for (const report of reports.slice(0, 3)) {
+        if (report.id && report.location) {
+          const distance = calculateDistance(
+            locationData.coordinates.lat,
+            locationData.coordinates.lng,
+            report.location.latitude,
+            report.location.longitude
+          );
+          distances[report.id] = formatDistance(distance);
+        }
+      }
+      setReportDistances(distances);
     } catch (error) {
       console.error('Error fetching nearby reports:', error);
     }
@@ -93,6 +109,7 @@ export default function HomeScreen() {
       
       <ScrollView
         style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
@@ -102,12 +119,15 @@ export default function HomeScreen() {
           <View style={styles.headerContent}>
             <View style={styles.headerTop}>
               <Text style={styles.appName}>Sudhaar</Text>
-              <TouchableOpacity>
-                <IconSymbol name="bell.fill" size={24} color="#fff" />
-              </TouchableOpacity>
+              <View style={styles.headerActions}>
+                <TouchableOpacity style={styles.iconButton}>
+                  <IconSymbol name="bell.fill" size={24} color="#fff" />
+                </TouchableOpacity>
+                <LanguageSelector />
+              </View>
             </View>
             
-            <Text style={styles.greeting}>Hi {user?.displayName || 'Guest'}! 👋</Text>
+            <Text style={styles.greeting}>{t('greeting', { name: user?.displayName || t('guest') })}</Text>
             
             <View style={styles.locationContainer}>
               <IconSymbol name="mappin" size={16} color="#fff" />
@@ -119,70 +139,75 @@ export default function HomeScreen() {
         {/* Main Actions Grid */}
         <View style={styles.actionsGrid}>
           <TouchableOpacity
+            activeOpacity={0.7}
             style={[styles.actionCard, { backgroundColor: colors.cardBackground }]}
             onPress={() => router.push('/(tabs)/report')}
           >
             <View style={[styles.actionIconContainer, { backgroundColor: '#DBEAFE' }]}>
               <IconSymbol name="camera.fill" size={32} color="#3B82F6" />
             </View>
-            <Text style={[styles.actionTitle, { color: colors.text }]}>Report Issue</Text>
+            <Text style={[styles.actionTitle, { color: colors.text }]}>{t('reportIssue')}</Text>
             <Text style={[styles.actionSubtitle, { color: colors.icon }]}>
-              Raise civic problems
+              {t('raiseCivicProblems')}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
+            activeOpacity={0.7}
             style={[styles.actionCard, { backgroundColor: colors.cardBackground }]}
             onPress={() => router.push('/(tabs)/map')}
           >
             <View style={[styles.actionIconContainer, { backgroundColor: '#D1FAE5' }]}>
               <IconSymbol name="mappin.circle.fill" size={32} color="#10B981" />
             </View>
-            <Text style={[styles.actionTitle, { color: colors.text }]}>Issues near me</Text>
+            <Text style={[styles.actionTitle, { color: colors.text }]}>{t('issuesNearMe')}</Text>
             <Text style={[styles.actionSubtitle, { color: colors.icon }]}>
-              Check local problems
+              {t('checkLocalProblems')}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
+            activeOpacity={0.7}
             style={[styles.actionCard, { backgroundColor: colors.cardBackground }]}
             onPress={() => router.push('/(tabs)/profile')}
           >
             <View style={[styles.actionIconContainer, { backgroundColor: '#FEF3C7' }]}>
               <IconSymbol name="doc.text.fill" size={32} color="#F59E0B" />
             </View>
-            <Text style={[styles.actionTitle, { color: colors.text }]}>My Complaints</Text>
+            <Text style={[styles.actionTitle, { color: colors.text }]}>{t('myComplaints')}</Text>
             <Text style={[styles.actionSubtitle, { color: colors.icon }]}>
-              Track your reports
+              {t('trackYourReports')}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
+            activeOpacity={0.7}
             style={[styles.actionCard, { backgroundColor: colors.cardBackground }]}
             onPress={() => Alert.alert('Coming Soon', 'Alerts & News feature coming soon!')}
           >
             <View style={[styles.actionIconContainer, { backgroundColor: '#FEE2E2' }]}>
               <IconSymbol name="exclamationmark.triangle.fill" size={32} color="#EF4444" />
             </View>
-            <Text style={[styles.actionTitle, { color: colors.text }]}>Alerts & News</Text>
-            <Text style={[styles.actionSubtitle, { color: colors.icon }]}>Stay updated</Text>
+            <Text style={[styles.actionTitle, { color: colors.text }]}>{t('alertsNews')}</Text>
+            <Text style={[styles.actionSubtitle, { color: colors.icon }]}>{t('stayUpdated')}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Nearby Complaints */}
         <View style={styles.nearbySection}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Nearby Complaints</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('nearbyComplaints')}</Text>
 
           {nearbyReports.length === 0 ? (
             <View style={[styles.emptyCard, { backgroundColor: colors.cardBackground }]}>
               <Text style={[styles.emptyText, { color: colors.icon }]}>
-                No nearby complaints found
+                {t('noNearbyComplaints')}
               </Text>
             </View>
           ) : (
             nearbyReports.map((report) => (
               <TouchableOpacity
                 key={report.id}
+                activeOpacity={0.7}
                 style={[styles.reportCard, { backgroundColor: colors.cardBackground }]}
                 onPress={() => router.push('/(tabs)/community')}
               >
@@ -199,7 +224,9 @@ export default function HomeScreen() {
                   <View style={styles.reportLocation}>
                     <IconSymbol name="mappin" size={14} color={colors.icon} />
                     <Text style={[styles.reportLocationText, { color: colors.icon }]}>
-                      {report.location ? 'Nearby' : 'Location unavailable'}
+                      {report.id && reportDistances[report.id] 
+                        ? reportDistances[report.id]
+                        : 'Nearby'}
                     </Text>
                   </View>
                   <View style={styles.reportVotes}>
@@ -230,6 +257,9 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
+  scrollContent: {
+    flexGrow: 1,
+  },
   header: {
     paddingTop: 60,
     paddingBottom: 32,
@@ -251,6 +281,17 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   greeting: {
     fontSize: 24,
     fontWeight: '600',
@@ -260,11 +301,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    flex: 1,
   },
   location: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#fff',
     opacity: 0.9,
+    flexWrap: 'wrap',
+    flex: 1,
+    lineHeight: 18,
   },
   actionsGrid: {
     flexDirection: 'row',

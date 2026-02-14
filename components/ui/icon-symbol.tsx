@@ -1,7 +1,7 @@
 // Fallback for using MaterialIcons on Android and web.
 
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { SymbolWeight, SymbolViewProps } from 'expo-symbols';
+import { SymbolViewProps, SymbolWeight } from 'expo-symbols';
 import { ComponentProps } from 'react';
 import { OpaqueColorValue, type StyleProp, type TextStyle } from 'react-native';
 
@@ -14,10 +14,43 @@ type IconSymbolName = keyof typeof MAPPING;
  * - see SF Symbols in the [SF Symbols](https://developer.apple.com/sf-symbols/) app.
  */
 const MAPPING = {
+  // Navigation
   'house.fill': 'home',
+  'house': 'home',
+  'camera.fill': 'photo-camera',
+  'camera': 'photo-camera',
+  'map.fill': 'map',
+  'map': 'map',
+  'person.3.fill': 'groups',
+  'person.3': 'groups',
+  'person.crop.circle.fill': 'account-circle',
+  'person.crop.circle': 'account-circle',
+  
+  // Common icons
   'paperplane.fill': 'send',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
+  'bell.fill': 'notifications',
+  'mappin': 'location-on',
+  'mappin.circle.fill': 'my-location',
+  'mappin.circle': 'location-searching',
+  'hand.thumbsup.fill': 'thumb-up',
+  'hand.thumbsup': 'thumb-up-off-alt',
+  'checkmark': 'check',
+  'checkmark.circle.fill': 'check-circle',
+  'plus.circle.fill': 'add-circle',
+  'video.fill': 'videocam',
+  'photo.fill': 'photo',
+  'mic.fill': 'mic',
+  'stop.circle.fill': 'stop-circle',
+  'gearshape.fill': 'settings',
+  'questionmark.circle.fill': 'help',
+  'rectangle.portrait.and.arrow.right': 'logout',
+  'doc.text': 'description',
+  'doc.text.fill': 'description',
+  'exclamationmark.triangle.fill': 'warning',
+  'person.circle.fill': 'account-circle',
+  'globe': 'language',
 } as IconMapping;
 
 /**
