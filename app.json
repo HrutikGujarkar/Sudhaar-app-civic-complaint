@@ -1,0 +1,102 @@
+{
+  "expo": {
+    "name": "sudhaar",
+    "slug": "sudhaar",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "sudhaar",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sudhaar.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Sudhaar needs your location to report issues nearby and show problems in your area.",
+        "NSCameraUsageDescription": "Sudhaar needs camera access to capture photos of civic issues.",
+        "NSPhotoLibraryUsageDescription": "Sudhaar needs photo library access to select images of civic issues.",
+        "NSMicrophoneUsageDescription": "Sudhaar needs microphone access to record voice notes for reports."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.sudhaar.app",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "RECORD_AUDIO"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "YOUR_GOOGLE_MAPS_API_KEY"
+        }
+      },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "sudhar-app-6392d.firebaseapp.com"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "backgroundColor": "#000000"
+          }
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Sudhaar needs your location to report issues nearby and show problems in your area."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Sudhaar needs photo library access to select images of civic issues.",
+          "cameraPermission": "Sudhaar needs camera access to capture photos of civic issues."
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Sudhaar needs microphone access to record voice notes for reports."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
