@@ -8,13 +8,13 @@ import { Platform } from "react-native";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyCKN3cXtE2n31gqORVO7hSEQQA_32v117Q",
-  authDomain: "sudhar-app-6392d.firebaseapp.com",
-  projectId: "sudhar-app-6392d",
-  storageBucket: "sudhar-app-6392d.firebasestorage.app",
-  messagingSenderId: "384113607186",
-  appId: "1:384113607186:web:7501db7d239f592f3ececb",
-  measurementId: "G-EN5LBTT9DR"
+  apiKey: 
+  authDomain: 
+  projectId: 
+  storageBucket: 
+  messagingSenderId: 
+  appId: 
+  measurementId: 
 };
 
 // Initialize Firebase
