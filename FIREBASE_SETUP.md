@@ -51,10 +51,7 @@ Check the console logs:
    - "permission-denied" → Firestore rules not updated
 
 ## Current Setup
-
-- **Project ID**: sudhar-app-6392d
-- **Storage Bucket**: sudhar-app-6392d.firebasestorage.app
-- **Auth Domain**: sudhar-app-6392d.firebaseapp.com
+confidential
 
 ## Security Note
 
