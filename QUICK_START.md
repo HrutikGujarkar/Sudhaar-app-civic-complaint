@@ -83,6 +83,23 @@ npm start
 # 'w' for Web
 ```
 
+### 5.1 Configure ML Verification Backend
+
+The Report screen verifies complaint photos using the backend ML model before saving.
+
+1. Create a `.env` file (you can copy `.env.example`)
+2. Set this variable to your backend URL (must be reachable from your phone on the same Wi-Fi):
+
+```bash
+EXPO_PUBLIC_BACKEND_URL=http://<YOUR-LAN-IP>:8000
+```
+
+Then restart Expo with cache clear:
+
+```bash
+npx expo start -c
+```
+
 ### 6. Test the App
 
 1. **Login**: Use Google Sign-In to authenticate

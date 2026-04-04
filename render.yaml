@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: sudhaar-backend
+    env: docker
+    plan: starter
+    autoDeploy: true
+    healthCheckPath: /docs
+    envVars:
+      # Firebase Admin: prefer a Render Secret File and set this path
+      - key: FIREBASE_SERVICE_ACCOUNT
+        value: /etc/secrets/serviceAccountKey.json
+      # Cloudinary
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      # Optional
+      - key: MAX_UPLOAD_MB
+        value: "15"

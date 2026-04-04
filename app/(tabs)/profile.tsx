@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { signOutUser } from '@/services/auth.service';
-import { getUserReports, Report } from '@/services/firestore.service';
+import { deleteReport, getUserReports, Report } from '@/services/firestore.service';
 import { getAddressFromGeoPoint } from '@/services/location.service';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -106,6 +106,36 @@ export default function ProfileScreen() {
     );
   };
 
+  const handleDeleteReport = async (reportId?: string) => {
+    if (!reportId) return;
+
+    Alert.alert(
+      'Delete report?',
+      'This will remove the report from Firebase. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteReport(reportId);
+              setMyReports((prev) => prev.filter((r) => r.id !== reportId));
+              setLocationAddresses((prev) => {
+                const next = { ...prev };
+                delete next[reportId];
+                return next;
+              });
+            } catch (error: any) {
+              console.error('Error deleting report:', error);
+              Alert.alert('Error', error?.message || 'Failed to delete report. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const formatDate = (timestamp: any) => {
     const date = timestamp?.toDate?.() || new Date();
     return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -194,20 +224,30 @@ export default function ProfileScreen() {
                   <Text style={[styles.reportTitle, { color: colors.text }]}>
                     {report.title}
                   </Text>
-                  <View
-                    style={[
-                      styles.statusBadge,
-                      { backgroundColor: getStatusColor(report.status) + '20' },
-                    ]}
-                  >
-                    <Text
+                  <View style={styles.reportHeaderRight}>
+                    <View
                       style={[
-                        styles.statusBadgeText,
-                        { color: getStatusColor(report.status) },
+                        styles.statusBadge,
+                        { backgroundColor: getStatusColor(report.status) + '20' },
                       ]}
                     >
-                      {[t('reported'), t('validated'), t('working'), t('completed')][report.status]}
-                    </Text>
+                      <Text
+                        style={[
+                          styles.statusBadgeText,
+                          { color: getStatusColor(report.status) },
+                        ]}
+                      >
+                        {[t('reported'), t('validated'), t('working'), t('completed')][report.status]}
+                      </Text>
+                    </View>
+
+                    <TouchableOpacity
+                      onPress={() => handleDeleteReport(report.id)}
+                      style={styles.deleteButton}
+                      accessibilityLabel="Delete report"
+                    >
+                      <IconSymbol name="trash" size={20} color={colors.danger} />
+                    </TouchableOpacity>
                   </View>
                 </View>
 
@@ -402,6 +442,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 8,
+  },
+  reportHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  deleteButton: {
+    padding: 6,
+    borderRadius: 16,
   },
   reportTitle: {
     fontSize: 16,

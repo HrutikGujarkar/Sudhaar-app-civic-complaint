@@ -32,6 +32,30 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env
+.env.*
+!.env.example
+
+# local secrets (never commit)
+secrets/
+**/serviceAccount*.json
+
+# local virtualenvs
+.venv*/
+
+# local datasets / training data
+data/
+_dataset_import/
+DATASET FOR CIVIC CONNET/
+Pothole/
+
+# backend temp uploads
+backend/temp_uploads/
+temp_uploads/
+
+# python cache
+__pycache__/
+*.pyc
 
 # typescript
 *.tsbuildinfo

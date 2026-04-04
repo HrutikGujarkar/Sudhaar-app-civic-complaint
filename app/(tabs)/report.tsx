@@ -3,14 +3,13 @@ import { Colors } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { createReport } from '@/services/firestore.service';
+import { uploadComplaintToBackend } from '@/services/complaint_upload.service';
 import { getCurrentLocation } from '@/services/location.service';
-import { uploadAudio, uploadImage } from '@/services/storage.service';
+import type { MlVerifyResponse } from '@/services/ml_verify.service';
 import { Audio } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { GeoPoint } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -40,10 +39,20 @@ export default function ReportScreen() {
   const [audioUri, setAudioUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [showRegistered, setShowRegistered] = useState(false);
 
   useEffect(() => {
     fetchLocation();
   }, []);
+
+  useEffect(() => {
+    if (!showRegistered) return;
+    const id = setTimeout(() => {
+      setShowRegistered(false);
+      router.replace('/(tabs)');
+    }, 1400);
+    return () => clearTimeout(id);
+  }, [showRegistered, router]);
 
   const fetchLocation = async () => {
     try {
@@ -157,6 +166,11 @@ export default function ReportScreen() {
       return;
     }
 
+    if (!imageUri) {
+      Alert.alert(t('error'), 'Please attach a photo for verification.');
+      return;
+    }
+
     if (!description.trim()) {
       Alert.alert(t('missingDescription'), t('missingDescriptionMsg'), [
         { text: t('addDescription'), style: 'cancel' },
@@ -166,6 +180,42 @@ export default function ReportScreen() {
     }
 
     await submitReport();
+  };
+
+  const getMlVerificationMessage = (verify: MlVerifyResponse): { title: string; message: string } => {
+    const classification = String((verify as any)?.classification ?? '').toLowerCase();
+    const confidence = typeof (verify as any)?.confidence === 'number' ? (verify as any).confidence : null;
+    const confidenceText = confidence !== null ? `\n\nConfidence: ${Math.round(confidence)}%` : '';
+
+    const rawMessage = String((verify as any)?.message ?? '').trim();
+    const msgLower = rawMessage.toLowerCase();
+    if (msgLower.includes('verified as genuine') && msgLower.includes('could not save')) {
+      return {
+        title: 'Could not submit right now',
+        message: rawMessage || 'Your photo looks genuine, but we could not submit right now. Please try again in a moment.',
+      };
+    }
+
+    if (verify.status === 'rejected' || classification === 'fake') {
+      const backendReason = (verify as any)?.message as string | undefined;
+      return {
+        title: 'Complaint rejected',
+        message:
+          (backendReason && backendReason.trim()
+            ? `${backendReason.trim()}\n\nFor trust and safety, we only register complaints with genuine civic-issue photos. Please take a clear live photo of the problem and try again.`
+            : 'This photo looks non-genuine or unrelated to a real civic issue (e.g. screenshot, random image, or unclear evidence).\n\nFor trust and safety, we only register complaints with genuine civic-issue photos. Please take a clear live photo of the problem and try again.') +
+          confidenceText,
+      };
+    }
+
+    // not_verified / uncertain
+    return {
+      title: 'Could not verify photo',
+      message:
+        rawMessage ||
+        'We could not verify this photo confidently. Please try again with a clearer photo.\n\nTips: keep the issue fully visible, use good lighting, avoid blur, and don’t upload screenshots.' +
+          confidenceText,
+    };
   };
 
   const submitReport = async (skipLocationCheck: boolean = false) => {
@@ -208,87 +258,79 @@ export default function ReportScreen() {
       const userId = user?.uid || 'guest';
       console.log('Submitting report for user:', userId);
 
-      let imageURL = null;
-      if (imageUri) {
-        try {
-          console.log('Uploading image...');
-          imageURL = await uploadImage(imageUri, userId);
-          console.log('Image uploaded:', imageURL);
-        } catch (error: any) {
-          console.error('Image upload failed, continuing without image:', error);
-          Alert.alert(
-            t('warning'), 
-            t('imageUploadFailed'),
-            [
-              { text: t('cancel'), style: 'cancel', onPress: () => { setLoading(false); return; } },
-              { text: t('continue'), onPress: async () => { await continueSubmission(userId, null, null); } }
-            ]
-          );
-          return;
-        }
+      if (!imageUri) {
+        Alert.alert(t('error'), 'Please attach a photo for verification.');
+        setLoading(false);
+        return;
       }
 
-      let audioURL = null;
-      if (audioUri) {
-        try {
-          console.log('Uploading audio...');
-          audioURL = await uploadAudio(audioUri, userId);
-          console.log('Audio uploaded:', audioURL);
-        } catch (error: any) {
-          console.error('Audio upload failed, continuing without audio:', error);
-        }
-      }
-
-      await continueSubmission(userId, imageURL, audioURL);
-    } catch (error: any) {
-      console.error('Error submitting report:', error);
-      const errorMessage = error?.message || error?.toString() || 'Unknown error';
-      Alert.alert(t('error'), t('failedToSubmitMsg', { error: errorMessage }));
-      setLoading(false);
-    }
-  };
-
-  const continueSubmission = async (userId: string, imageURL: string | null, audioURL: string | null) => {
-    try {
-      console.log('Creating report in Firestore...');
-      
-      // Use current coordinates (just refreshed before submission)
       const lat = coordinates?.lat || 0;
       const lng = coordinates?.lng || 0;
-      console.log('Using live coordinates:', { lat, lng });
-      
-      const reportData = {
+
+      console.log('Uploading complaint to backend (verify + save)...');
+      const resp = await uploadComplaintToBackend({
+        imageUri,
         title: title.trim(),
         description: description.trim() || title.trim(),
-        type: selectedCategory,
-        location: new GeoPoint(lat, lng),
-        imageURL,
-        audioURL,
+        issueType: selectedCategory,
+        lat,
+        lng,
         uid: userId,
         userName: user?.displayName || user?.email || 'Anonymous',
-      };
-      console.log('Report data:', reportData);
-      
-      const reportId = await createReport(reportData);
+      });
 
-      console.log('Report created successfully with ID:', reportId);
-      Alert.alert(t('success'), t('reportSubmitted'), [
-        { text: 'OK', onPress: () => {
-          setTitle('');
-          setDescription('');
-          setSelectedCategory('');
-          setImageUri(null);
-          setAudioUri(null);
-          router.push('/(tabs)/community');
-        }},
-      ]);
+      if (resp.status === 'success') {
+        // Clear form and show a big success tick, then go Home.
+        setTitle('');
+        setDescription('');
+        setSelectedCategory('');
+        setImageUri(null);
+        setAudioUri(null);
+        setShowRegistered(true);
+        setLoading(false);
+        return;
+      }
+
+      // Rejected / pending_review / not_verified => show ML-style message.
+      const verifyLike: MlVerifyResponse = {
+        status: resp.status === 'rejected' ? 'rejected' : 'not_verified',
+        message: resp.message || 'Unable to verify image. Please try again.',
+        classification: resp.classification || (resp.status === 'rejected' ? 'fake' : 'uncertain'),
+        confidence: typeof resp.confidence === 'number' ? resp.confidence : 0,
+      };
+      const { title: alertTitle, message } = getMlVerificationMessage(verifyLike);
+      Alert.alert(alertTitle, message);
+      setLoading(false);
+      return;
     } catch (error: any) {
-      console.error('Firestore error:', error);
-      throw error;
-    } finally {
+      console.error('Error submitting report:', error);
+      Alert.alert(t('error'), t('failedToSubmit'));
       setLoading(false);
     }
   };
+
+  if (showRegistered) {
+    return (
+      <View
+        style={[
+          styles.container,
+          {
+            backgroundColor: colors.background,
+            justifyContent: 'center',
+            alignItems: 'center',
+            paddingHorizontal: 24,
+          },
+        ]}
+      >
+        <StatusBar style="dark" />
+        <IconSymbol name="checkmark.circle.fill" size={140} color={colors.success} />
+        <Text style={[styles.registeredTitle, { color: colors.text }]}>Registered</Text>
+        <Text style={[styles.registeredSubtitle, { color: colors.icon }]}>
+          Your complaint has been submitted successfully.
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -494,6 +536,16 @@ export default function ReportScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  registeredTitle: {
+    marginTop: 16,
+    fontSize: 28,
+    fontWeight: '800',
+  },
+  registeredSubtitle: {
+    marginTop: 8,
+    fontSize: 16,
+    textAlign: 'center',
   },
   scrollView: {
     flex: 1,

@@ -1,0 +1,29 @@
+# Node / Expo
+node_modules
+.expo
+npm-debug.log
+yarn.lock
+
+# Android build artifacts
+android/.gradle
+android/app/build
+android/build
+
+# Python
+**/__pycache__
+**/*.pyc
+.venv*
+
+# Local secrets
+secrets
+
+# Data / datasets
+_dataset_import
+DATASET FOR CIVIC CONNET
+Pothole
+
+# Temp uploads
+temp_uploads
+
+# Git
+.git

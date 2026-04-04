@@ -51,6 +51,10 @@ const MAPPING = {
   'exclamationmark.triangle.fill': 'warning',
   'person.circle.fill': 'account-circle',
   'globe': 'language',
+
+  // Destructive actions
+  'trash': 'delete',
+  'trash.fill': 'delete',
 } as IconMapping;
 
 /**

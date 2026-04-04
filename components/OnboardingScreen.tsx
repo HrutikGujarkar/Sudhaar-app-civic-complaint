@@ -1,14 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useRef, useState } from 'react';
 import {
-  Dimensions,
-  FlatList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  ViewToken
+    Dimensions,
+    FlatList,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+    ViewToken
 } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
@@ -28,7 +29,7 @@ const onboardingData: OnboardingItem[] = [
     title: 'Welcome',
     titleHindi: 'नमस्ते',
     description: 'Report civic issues and make a difference in your community',
-    icon: '👋',
+    icon: '🙏',
     backgroundColor: 'linear-gradient(180deg, #FFA726 0%, #66BB6A 100%)',
   },
   {
@@ -67,7 +68,9 @@ interface OnboardingScreenProps {
 
 export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [canSwipe, setCanSwipe] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+  const namasteImageUrl = (process.env.EXPO_PUBLIC_NAMASTE_IMAGE_URL || '').trim();
 
   const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
     if (viewableItems.length > 0) {
@@ -86,6 +89,11 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
         animated: true,
       });
     }
+  };
+
+  const handleStartSlides = () => {
+    setCanSwipe(true);
+    flatListRef.current?.scrollToIndex({ index: 1, animated: true });
   };
 
   const handleStart = async () => {
@@ -112,7 +120,16 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
           <View style={styles.content}>
             {/* Icon */}
             <View style={styles.iconContainer}>
-              <Text style={styles.welcomeIcon}>{item.icon}</Text>
+              {namasteImageUrl ? (
+                <ExpoImage
+                  source={{ uri: namasteImageUrl }}
+                  style={styles.namasteImage}
+                  contentFit="contain"
+                  transition={150}
+                />
+              ) : (
+                <Text style={styles.welcomeIcon}>{item.icon}</Text>
+              )}
             </View>
 
             {/* Title */}
@@ -126,7 +143,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
           </View>
 
           {/* Button */}
-          <TouchableOpacity style={styles.startButton} onPress={handleNext}>
+          <TouchableOpacity style={styles.startButton} onPress={handleStartSlides}>
             <Text style={styles.startButtonText}>Start</Text>
           </TouchableOpacity>
         </LinearGradient>
@@ -212,7 +229,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
         keyExtractor={(item) => item.id}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
-        scrollEnabled={true}
+        scrollEnabled={canSwipe}
       />
     </View>
   );
@@ -240,6 +257,10 @@ const styles = StyleSheet.create({
   },
   welcomeIcon: {
     fontSize: 80,
+  },
+  namasteImage: {
+    width: 190,
+    height: 190,
   },
   uploadIcon: {
     width: 120,

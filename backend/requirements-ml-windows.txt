@@ -1,0 +1,14 @@
+# Windows ML training/runtime dependencies
+# Use this if `pip install -r backend/requirements.txt` fails on Windows.
+
+fastapi
+uvicorn[standard]
+python-multipart
+numpy
+pillow
+scipy
+firebase-admin
+cloudinary
+
+# Windows-compatible TensorFlow build
+tensorflow-cpu

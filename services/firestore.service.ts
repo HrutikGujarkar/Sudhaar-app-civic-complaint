@@ -1,15 +1,16 @@
 import {
-    addDoc,
-    arrayRemove,
-    arrayUnion,
-    collection,
-    doc,
-    GeoPoint,
-    getDocs,
-    query,
-    Timestamp,
-    updateDoc,
-    where
+  addDoc,
+  arrayRemove,
+  arrayUnion,
+  collection,
+  deleteDoc,
+  doc,
+  GeoPoint,
+  getDocs,
+  query,
+  Timestamp,
+  updateDoc,
+  where
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
@@ -135,6 +136,17 @@ export const updateReportStatus = async (reportId: string, status: number) => {
     await updateDoc(reportRef, { status });
   } catch (error) {
     console.error('Error updating report status:', error);
+    throw error;
+  }
+};
+
+// Delete a report (owner-only in Firestore Rules)
+export const deleteReport = async (reportId: string) => {
+  try {
+    const reportRef = doc(db, 'reports', reportId);
+    await deleteDoc(reportRef);
+  } catch (error) {
+    console.error('Error deleting report:', error);
     throw error;
   }
 };
