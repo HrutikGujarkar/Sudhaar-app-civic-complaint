@@ -4,7 +4,7 @@ services:
     env: docker
     plan: starter
     autoDeploy: true
-    healthCheckPath: /docs
+    healthCheckPath: /health
     envVars:
       # Firebase Admin: prefer a Render Secret File and set this path
       - key: FIREBASE_SERVICE_ACCOUNT

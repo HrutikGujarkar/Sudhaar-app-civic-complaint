@@ -8,7 +8,7 @@ import { deleteReport, getUserReports, Report } from '@/services/firestore.servi
 import { getAddressFromGeoPoint } from '@/services/location.service';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -32,16 +32,11 @@ export default function ProfileScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [locationAddresses, setLocationAddresses] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    if (user) {
-      fetchMyReports();
-    } else {
+  const fetchMyReports = useCallback(async () => {
+    if (!user) {
       setLoading(false);
+      return;
     }
-  }, [user]);
-
-  const fetchMyReports = async () => {
-    if (!user) return;
     
     try {
       console.log('Fetching reports for user:', user.uid);
@@ -57,7 +52,7 @@ export default function ProfileScreen() {
             const address = await getAddressFromGeoPoint(report.location);
             addresses[report.id] = address;
           } catch (error) {
-            console.error('Error fetching address for report:', report.id);
+            console.error('Error fetching address for report:', report.id, error);
             addresses[report.id] = t('loadingLocation');
           }
         }
@@ -72,7 +67,11 @@ export default function ProfileScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [t, user]);
+
+  useEffect(() => {
+    fetchMyReports();
+  }, [fetchMyReports]);
   
   const onRefresh = async () => {
     setRefreshing(true);

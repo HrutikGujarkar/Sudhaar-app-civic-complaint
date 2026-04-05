@@ -26,7 +26,6 @@ export default function HomeScreen() {
   const { t } = useLanguage();
   const router = useRouter();
   const [location, setLocation] = useState<string>('Fetching location...');
-  const [userCoordinates, setUserCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [nearbyReports, setNearbyReports] = useState<Report[]>([]);
   const [reportDistances, setReportDistances] = useState<Record<string, string>>({});
   const [refreshing, setRefreshing] = useState(false);
@@ -45,7 +44,6 @@ export default function HomeScreen() {
         return;
       }
 
-      setUserCoordinates(locationData.coordinates);
       setLocation(locationData.address);
     } catch (error) {
       console.error('Error fetching location:', error);
@@ -91,11 +89,6 @@ export default function HomeScreen() {
     setRefreshing(true);
     await Promise.all([fetchLocation(), fetchNearbyReports()]);
     setRefreshing(false);
-  };
-
-  const getStatusText = (status: number) => {
-    const statuses = ['Reported', 'Validated', 'Working', 'Completed'];
-    return statuses[status] || 'Unknown';
   };
 
   const formatDate = (timestamp: any) => {

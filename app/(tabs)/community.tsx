@@ -6,7 +6,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getAllReports, Report, voteReport } from '@/services/firestore.service';
 import { getAddressFromGeoPoint } from '@/services/location.service';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     RefreshControl,
@@ -28,11 +28,7 @@ export default function CommunityScreen() {
   const [selectedFilter, setSelectedFilter] = useState<number | null>(null);
   const [locationAddresses, setLocationAddresses] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    fetchReports();
-  }, []);
-
-  const fetchReports = async () => {
+  const fetchReports = useCallback(async () => {
     try {
       const allReports = await getAllReports();
       setReports(allReports);
@@ -45,7 +41,7 @@ export default function CommunityScreen() {
             const address = await getAddressFromGeoPoint(report.location);
             addresses[report.id] = address;
           } catch (error) {
-            console.error('Error fetching address for report:', report.id);
+            console.error('Error fetching address for report:', report.id, error);
             addresses[report.id] = t('loadingLocation');
           }
         }
@@ -56,7 +52,11 @@ export default function CommunityScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [t]);
+
+  useEffect(() => {
+    fetchReports();
+  }, [fetchReports]);
 
   const onRefresh = async () => {
     setRefreshing(true);

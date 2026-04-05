@@ -33,6 +33,12 @@ app = FastAPI(title="Complaint Upload API with ML Filtering")
 logger = logging.getLogger(__name__)
 
 
+@app.get("/health")
+def health_check():
+    """Lightweight health check endpoint (safe for Render health checks)."""
+    return {"status": "ok"}
+
+
 def _load_env_file(path: Path) -> None:
     """Load KEY=VALUE pairs into os.environ if not already set.
 

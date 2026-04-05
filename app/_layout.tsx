@@ -10,14 +10,12 @@ import LoginScreen from '@/components/LoginScreen';
 import OnboardingScreen from '@/components/OnboardingScreen';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { LanguageProvider } from '@/context/LanguageContext';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export const unstable_settings = {
   anchor: '(tabs)',
 };
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme();
   const { user, loading, skipAuth } = useAuth();
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(null);
 

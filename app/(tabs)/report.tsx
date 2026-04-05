@@ -10,7 +10,7 @@ import { Audio } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -41,20 +41,7 @@ export default function ReportScreen() {
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [showRegistered, setShowRegistered] = useState(false);
 
-  useEffect(() => {
-    fetchLocation();
-  }, []);
-
-  useEffect(() => {
-    if (!showRegistered) return;
-    const id = setTimeout(() => {
-      setShowRegistered(false);
-      router.replace('/(tabs)');
-    }, 1400);
-    return () => clearTimeout(id);
-  }, [showRegistered, router]);
-
-  const fetchLocation = async () => {
+  const fetchLocation = useCallback(async () => {
     try {
       setLocation(t('gettingLocation'));
       
@@ -74,7 +61,20 @@ export default function ReportScreen() {
       setCoordinates({ lat: 0, lng: 0 });
       setLocation(t('unableToFetchLocation'));
     }
-  };
+  }, [t]);
+
+  useEffect(() => {
+    fetchLocation();
+  }, [fetchLocation]);
+
+  useEffect(() => {
+    if (!showRegistered) return;
+    const id = setTimeout(() => {
+      setShowRegistered(false);
+      router.replace('/(tabs)');
+    }, 1400);
+    return () => clearTimeout(id);
+  }, [showRegistered, router]);
 
   const takePhoto = async () => {
     try {
