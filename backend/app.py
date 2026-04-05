@@ -6,15 +6,16 @@ import uuid
 from typing import Tuple
 import logging
 from pathlib import Path
+import threading
 
 # Import our ML module logic
 # Supports both:
 #   - `uvicorn backend.app:app` (package import)
 #   - `python backend/app.py` (script execution)
 try:
-    from .ml_model import load_model_global, predict_complaint, rule_based_reject_reason
+    from .ml_model import is_model_loaded, load_model_global, predict_complaint, rule_based_reject_reason
 except ImportError:  # pragma: no cover
-    from ml_model import load_model_global, predict_complaint, rule_based_reject_reason
+    from ml_model import is_model_loaded, load_model_global, predict_complaint, rule_based_reject_reason
 
 # Firebase integration (Admin SDK)
 try:
@@ -36,7 +37,18 @@ logger = logging.getLogger(__name__)
 @app.get("/health")
 def health_check():
     """Lightweight health check endpoint (safe for Render health checks)."""
-    return {"status": "ok"}
+    return {"status": "ok", "modelLoaded": is_model_loaded()}
+
+
+@app.get("/")
+def root():
+    return {
+        "name": "Sudhaar backend",
+        "health": "/health",
+        "docs": "/docs",
+        "verify": "/complaints/verify",
+        "upload": "/complaints/upload",
+    }
 
 
 def _load_env_file(path: Path) -> None:
@@ -117,8 +129,20 @@ async def _save_upload_to_temp_file(upload: UploadFile, *, allowed_extensions: s
 
 @app.on_event("startup")
 def _startup_load_ml_model():
-    """Load the ML model once at server startup (performance requirement)."""
-    load_model_global()
+    """Kick off ML model load in background.
+
+    On small Render plans, TensorFlow model load can be slow and may cause
+    health-check timeouts/restart loops if we block startup.
+    """
+
+    def _load():
+        try:
+            load_model_global()
+        except Exception as e:
+            # Don't crash the server; endpoints will fail with a 500 until fixed.
+            logger.exception("ML model failed to load: %s", e)
+
+    threading.Thread(target=_load, daemon=True).start()
 
 
 @app.on_event("startup")

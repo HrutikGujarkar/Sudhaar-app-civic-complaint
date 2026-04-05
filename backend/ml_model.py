@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+import threading
 
 import numpy as np
 from tensorflow.keras.models import load_model
@@ -26,6 +27,7 @@ REJECT_FAKE_THRESHOLD = float(os.environ.get("REJECT_FAKE_THRESHOLD", "0.90"))
 # Initialize model + metadata
 _model = None
 _index_to_label = None
+_load_lock = threading.Lock()
 
 
 def load_model_global():
@@ -35,21 +37,29 @@ def load_model_global():
     if _model is not None:
         return
 
-    if not MODEL_PATH.exists():
-        raise FileNotFoundError(
-            f"Model file not found at {MODEL_PATH}. Train it first using train_model.py"
-        )
+    with _load_lock:
+        if _model is not None:
+            return
 
-    _model = load_model(str(MODEL_PATH))
+        if not MODEL_PATH.exists():
+            raise FileNotFoundError(
+                f"Model file not found at {MODEL_PATH}. Train it first using train_model.py"
+            )
 
-    # Optional but recommended: use the saved class mapping from training.
-    # If missing, we fall back to alphabetical ordering: ['fake', 'genuine'].
-    if CLASS_MAP_PATH.exists():
-        with open(CLASS_MAP_PATH, 'r', encoding='utf-8') as f:
-            label_to_index = json.load(f)
-        _index_to_label = {int(v): str(k) for k, v in label_to_index.items()}
-    else:
-        _index_to_label = {0: 'fake', 1: 'genuine'}
+        _model = load_model(str(MODEL_PATH))
+
+        # Optional but recommended: use the saved class mapping from training.
+        # If missing, we fall back to alphabetical ordering: ['fake', 'genuine'].
+        if CLASS_MAP_PATH.exists():
+            with open(CLASS_MAP_PATH, 'r', encoding='utf-8') as f:
+                label_to_index = json.load(f)
+            _index_to_label = {int(v): str(k) for k, v in label_to_index.items()}
+        else:
+            _index_to_label = {0: 'fake', 1: 'genuine'}
+
+
+def is_model_loaded() -> bool:
+    return _model is not None
 
 def get_model():
     """Returns the globally loaded model.
