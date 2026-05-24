@@ -1,7 +1,10 @@
 fastapi
 uvicorn[standard]
 python-multipart
-tensorflow
+# Keep TensorFlow version stable between training and deployment.
+# Render runs on Linux, while local dev/training may be Windows.
+tensorflow==2.21.0; platform_system != "Windows"
+tensorflow-cpu==2.21.0; platform_system == "Windows"
 numpy
 pillow
 scipy
